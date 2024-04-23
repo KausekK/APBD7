@@ -1,5 +1,6 @@
 ﻿using System.Data.SqlClient;
 using lab7.Models.DTO;
+using lab7.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace lab7.Controllers;
@@ -8,67 +9,64 @@ namespace lab7.Controllers;
 public class WarehouseController : ControllerBase
 {
     
-    private readonly IConfiguration _configuration;
-    public WarehouseController(IConfiguration configuration)
-{
-    _configuration = configuration;
-}
+    private readonly WarehouseService _warehouseService;
 
-
-    [HttpGet("{IdProduct}")]
-    public IEnumerable<ProductDTO> isProductExist(int IdProduct)
+    public WarehouseController(WarehouseService warehouseService)
     {
-        using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
-        connection.Open();
-
-        using SqlCommand command = new SqlCommand();
-        command.Connection = connection;
-        var reader = command.ExecuteReader();
-        List<ProductDTO> products = new List<ProductDTO>();
-        while (reader.Read())
-        {
-            var product = new ProductDTO
-            {
-                IdProduct = (int)reader["IdProduct"],
-                Name  = reader["Name"].ToString(),
-                Description =  reader["Description"].ToString(),
-                Price =  (double) reader["Price"]
-            };
-            products.Add(product);
-        }
-
-        if (IdProduct )
-        {
-            
-        }
-        connection.Close();
-        return products;
+        _warehouseService = warehouseService;
     }
-
-
-
-    [HttpPost]
-        public IActionResult AddProductToWarehouse(ProductWarehouseDTO productWarehouseDTO)
+    
+    [HttpPost("AddProductToWarehouse")]
+    public IActionResult AddProductToWarehouse([FromBody] ProductWarehouseDTO productWarehouse)
+    {
+        if (productWarehouse.IdProduct <= 0 || productWarehouse.IdWarehouse <= 0 || productWarehouse.Amount <= 0)
         {
-            try
-            {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-                using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
-                connection.Open();
-
-                using SqlCommand command = new SqlCommand();
-                command.Connection = connection;
-                
-
-                    return Ok("Product added to warehouse successfully");
-            }
-            
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("IdProduct, IdWarehouse, and Amount should be greater than 0");
         }
+        if (productWarehouse.CreatedAt >= DateTime.Now)
+        {
+            return BadRequest("CreatedAt should be earlier than the current date and time");
+        }
+
+        bool productExists = _warehouseService.CheckIfProductExists(productWarehouse.IdProduct);
+        bool warehouseExists = _warehouseService.CheckIfWarehouseExists(productWarehouse.IdWarehouse);
+
+        if (!productExists)
+        {
+            return NotFound("Product with the provided Id does not exist");
+        }
+        if (!warehouseExists)
+        {
+            return NotFound("Warehouse with the provided Id does not exist");
+        }
+
+      
+        
+        if (_warehouseService.CheckIfOrderExists(productWarehouse.IdProduct, productWarehouse.Amount, productWarehouse.CreatedAt))
+        {
+            return BadRequest("Order does not exist");
+        }
+        
+        if (_warehouseService.GetOrderId(productWarehouse.IdProduct, productWarehouse.Amount,
+                productWarehouse.CreatedAt) == -1)
+        {
+            return BadRequest("Order does not exist");
+
+        }
+        var orderId = _warehouseService.GetOrderId(productWarehouse.IdProduct, productWarehouse.Amount,
+            productWarehouse.CreatedAt);
+       
+        if (_warehouseService.IsIdOrderInProduct_Warehouse(orderId))
+        {
+            return BadRequest("The order has already been fulfilled");
+        }
+        _warehouseService.UpdateOrderFulfilledAt(orderId);
+
+        double productPrice = _warehouseService.GetProductPrice(productWarehouse.IdProduct);
+        double totalPrice = productPrice * productWarehouse.Amount;
+
+        _warehouseService.InsertProductWarehouseRecord(orderId, productWarehouse.IdProduct, productWarehouse.IdWarehouse, productWarehouse.Amount, totalPrice);
+
+        return Ok("Product added to warehouse");
+    }
 }
