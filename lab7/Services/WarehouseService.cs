@@ -1,4 +1,5 @@
-﻿using System.Data.SqlClient;
+﻿using System.Data;
+using System.Data.SqlClient;
 
 namespace lab7.Services;
 
@@ -179,5 +180,32 @@ public class WarehouseService
 
         return productPrice;
     }
-    
+
+
+    public int AddProductToWarehouseProcedure(int IdProduct, int IdWarehouse, int Amount, DateTime CreatedAt)
+    {
+        using (SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default")))
+        {
+            connection.Open();
+
+            using (SqlCommand command = new SqlCommand("AddProductToWarehouse", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+
+                command.Parameters.AddWithValue("@IdProduct", IdProduct);
+                command.Parameters.AddWithValue("@IdWarehouse", IdWarehouse);
+                command.Parameters.AddWithValue("@Amount", Amount);
+                command.Parameters.AddWithValue("@CreatedAt", CreatedAt);
+
+                SqlParameter newIdParam = new SqlParameter("@NewId", SqlDbType.Int);
+                newIdParam.Direction = ParameterDirection.Output;
+                command.Parameters.Add(newIdParam);
+
+                command.ExecuteNonQuery();
+
+                int newId = Convert.ToInt32(command.Parameters["@NewId"].Value);
+                return newId;
+            }
+        }
+    }
 }

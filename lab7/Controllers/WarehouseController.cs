@@ -39,8 +39,6 @@ public class WarehouseController : ControllerBase
         {
             return NotFound("Warehouse with the provided Id does not exist");
         }
-
-      
         
         if (_warehouseService.CheckIfOrderExists(productWarehouse.IdProduct, productWarehouse.Amount, productWarehouse.CreatedAt))
         {
@@ -69,4 +67,27 @@ public class WarehouseController : ControllerBase
 
         return Ok("Product added to warehouse");
     }
+    
+    [HttpPost("AddProductToWarehouseProcedure")]
+    public IActionResult AddProductToWarehouseProcedure([FromBody] ProductWarehouseDTO productWarehouse)
+    {
+        if (productWarehouse.IdProduct <= 0 || productWarehouse.IdWarehouse <= 0 || productWarehouse.Amount <= 0)
+        {
+            return BadRequest("IdProduct, IdWarehouse, and Amount should be greater than 0");
+        }
+        if (productWarehouse.CreatedAt >= DateTime.Now)
+        {
+            return BadRequest("CreatedAt should be earlier than the current date and time");
+        }
+
+        int result = _warehouseService.AddProductToWarehouseProcedure(productWarehouse.IdProduct, productWarehouse.IdWarehouse, productWarehouse.Amount, productWarehouse.CreatedAt);
+
+        if (result == -1)
+        {
+            return BadRequest("Failed to add product to warehouse");
+        }
+
+        return Ok($"Product added to warehouse with ID: {result}");
+    }
+
 }
