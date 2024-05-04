@@ -1,4 +1,5 @@
-﻿using System.Data.SqlClient;
+﻿using System.Data;
+using System.Data.SqlClient;
 using lab7.Models.DTO;
 using lab7.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -68,26 +69,19 @@ public class WarehouseController : ControllerBase
         return Ok("Product added to warehouse");
     }
     
-    [HttpPost("AddProductToWarehouseProcedure")]
-    public IActionResult AddProductToWarehouseProcedure([FromBody] ProductWarehouseDTO productWarehouse)
+   [HttpPost("AddProduct")]
+    public IActionResult AddProductToWarehouseWithProcedure([FromBody] ProductWarehouseDTO productWarehouse)
     {
-        if (productWarehouse.IdProduct <= 0 || productWarehouse.IdWarehouse <= 0 || productWarehouse.Amount <= 0)
+        try
         {
-            return BadRequest("IdProduct, IdWarehouse, and Amount should be greater than 0");
+            var result = _warehouseService.AddProductToWarehouse(
+                productWarehouse.IdProduct, productWarehouse.IdWarehouse, productWarehouse.Amount, productWarehouse.CreatedAt);
+            return Ok(result);
         }
-        if (productWarehouse.CreatedAt >= DateTime.Now)
+        catch (SqlException ex)
         {
-            return BadRequest("CreatedAt should be earlier than the current date and time");
+            return StatusCode(500, ex.Message);
         }
-
-        int result = _warehouseService.AddProductToWarehouseProcedure(productWarehouse.IdProduct, productWarehouse.IdWarehouse, productWarehouse.Amount, productWarehouse.CreatedAt);
-
-        if (result == -1)
-        {
-            return BadRequest("Failed to add product to warehouse");
-        }
-
-        return Ok($"Product added to warehouse with ID: {result}");
     }
 
 }

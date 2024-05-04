@@ -182,30 +182,23 @@ public class WarehouseService
     }
 
 
-    public int AddProductToWarehouseProcedure(int IdProduct, int IdWarehouse, int Amount, DateTime CreatedAt)
+    public object AddProductToWarehouse(int idProduct, int idWarehouse, int amount, DateTime createdAt)
     {
         using (SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default")))
         {
-            connection.Open();
-
-            using (SqlCommand command = new SqlCommand("AddProductToWarehouse", connection))
+            using (var cmd = new SqlCommand("AddProductToWarehouse", connection))
             {
-                command.CommandType = CommandType.StoredProcedure;
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@IdProduct", idProduct);
+                cmd.Parameters.AddWithValue("@IdWarehouse", idWarehouse);
+                cmd.Parameters.AddWithValue("@Amount", amount);
+                cmd.Parameters.AddWithValue("@CreatedAt", createdAt);
 
-                command.Parameters.AddWithValue("@IdProduct", IdProduct);
-                command.Parameters.AddWithValue("@IdWarehouse", IdWarehouse);
-                command.Parameters.AddWithValue("@Amount", Amount);
-                command.Parameters.AddWithValue("@CreatedAt", CreatedAt);
-
-                SqlParameter newIdParam = new SqlParameter("@NewId", SqlDbType.Int);
-                newIdParam.Direction = ParameterDirection.Output;
-                command.Parameters.Add(newIdParam);
-
-                command.ExecuteNonQuery();
-
-                int newId = Convert.ToInt32(command.Parameters["@NewId"].Value);
-                return newId;
+                connection.Open();
+                var result = cmd.ExecuteScalar(); 
+                return new { NewId = result };
             }
         }
     }
+
 }
